@@ -88,7 +88,7 @@ class Inferer(Config):
 
     ####
     def run(self): 
-        predictor = OfflinePredictor(gen_pred_config())
+        predictor = OfflinePredictor(self.gen_pred_config())
         for num, data_dir in enumerate(self.inf_data_list):
             save_dir = os.path.join(self.inf_output_dir, str(num))
 

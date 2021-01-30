@@ -7,7 +7,8 @@ from collections import defaultdict
 import cv2
 import numpy as np
 import tensorflow as tf
-from tensorpack import imgaug
+from tensorpack import imgaug, PredictConfig
+from tensorpack.tfutils import get_model_loader
 
 from loader.augs import (BinarizeLabel, GaussianBlur, GenInstanceDistance,
                          GenInstanceHV, MedianBlur, GenInstanceUnetMap,
@@ -15,6 +16,7 @@ from loader.augs import (BinarizeLabel, GaussianBlur, GenInstanceDistance,
                          eqRGB2HED, eqHistCV, pipeHEDAugment, linearAugmentation)
 
 from misc.info import COLOR_PALETE
+from misc.utils import get_best_chkpts
 
 ####
 class Config(object):

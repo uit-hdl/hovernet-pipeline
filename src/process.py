@@ -138,7 +138,7 @@ def process(jobs):
 
         start = datetime.now()
         if jobs > 1: 
-            assert AV_CPU < jobs, f'Consider using lower number of jobs (recommended {AV_CPU - 4 if AV_CPU - 4 > 0 else 1})'
+            assert AV_CPU > jobs, f'Consider using lower number of jobs (recommended {AV_CPU - 4 if AV_CPU - 4 > 0 else 1})'
             print(f"Stared parallel process for ```{data_dir}``` {start.strftime('%d/%m %H:%M:%S.%f')}")
             print(f"Using {jobs} jobs")
             Parallel(n_jobs=jobs, prefer='threads')(delayed(process_image)(filename) for filename in file_list)
@@ -152,6 +152,6 @@ def process(jobs):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--jobs', help='How many jobs used to run processing', default=1)
+    parser.add_argument('--jobs', help='How many jobs used to run processing', type=int, default=1)
     args = parser.parse_args()
     process(args.jobs)
