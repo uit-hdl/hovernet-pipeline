@@ -7,7 +7,7 @@ from collections import defaultdict
 import cv2
 import numpy as np
 import tensorflow as tf
-from tensorpack import imgaug, PredictConfig
+from tensorpack import imgaug, PredictConfig, SaverRestoreRelaxed
 from tensorpack.tfutils import get_model_loader
 
 from loader.augs import (BinarizeLabel, GaussianBlur, GenInstanceDistance,
@@ -349,13 +349,18 @@ class Config(object):
             print('Having Following Statistics:')
             for key, value in stat.items():
                 print('\t%s: %s' % (key, value))
+            sess = get_model_loader(model_path)
         else:
             model_path = self.inf_model_path
-
+            sess = SaverRestoreRelaxed(self.inf_model_path)
+            
         model_constructor = self.get_model()
         pred_config = PredictConfig(
             model        = model_constructor(),
-            session_init = get_model_loader(model_path),
+            session_init = sess,
             input_names  = self.eval_inf_input_tensor_names,
             output_names = self.eval_inf_output_tensor_names)
         return pred_config
+
+
+        
