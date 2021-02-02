@@ -140,7 +140,7 @@ class Config(object):
         # rootdir, outputdirname, subdir1, subdir2(opt) ...
         self.inf_data_list = [os.path.join(data_config['input_prefix'], x) for x in data_config['inf_data_list']]
         
-        model_used = self.model_name if self.inf_auto_find_chkpt else f"{data_config['inf_model'].split('.')[0]}"
+        model_used = self.model_name if self.inf_auto_find_chkpt else os.path.basename(f"{data_config['inf_model'].split('.')[0]}")
 
         self.inf_auto_metric = data_config['inf_auto_metric']
         self.inf_output_dir = os.path.join(self.out_infer_root, f"{model_used}.{''.join(data_config['inf_data_list']).replace('/', '_').rstrip('_')}.{self.inf_auto_metric}")
@@ -150,6 +150,7 @@ class Config(object):
         self.skip_types = [self.nuclei_type_dict[x.strip()] for x in data_config['skip_types']] if data_config['skip_types'] is not None else None
 
         self.inf_auto_comparator = data_config['inf_auto_comparator']
+        self.inf_batch_size = data_config['inf_batch_size']
 
         # For inference during evalutaion mode i.e run by inferer.py
         self.eval_inf_input_tensor_names = ['images']
@@ -353,7 +354,7 @@ class Config(object):
         else:
             model_path = self.inf_model_path
             sess = SaverRestoreRelaxed(self.inf_model_path)
-            
+
         model_constructor = self.get_model()
         pred_config = PredictConfig(
             model        = model_constructor(),

@@ -91,6 +91,7 @@ class Inferer(Config):
         predictor = OfflinePredictor(self.gen_pred_config())
         for num, data_dir in enumerate(self.inf_data_list):
             save_dir = os.path.join(self.inf_output_dir, str(num))
+            print (save_dir)
 
             file_list = glob.glob(os.path.join(data_dir, '*{}'.format(self.inf_imgs_ext)))
             file_list.sort() # ensure same order
@@ -107,7 +108,7 @@ class Inferer(Config):
 
                 ##
                 pred_map = self.__gen_prediction(img, predictor)
-                sio.savemat(os.path.join(save_dir,'{}.mat'.format(basename)), {'result':[pred_map]})
+                sio.savemat(os.path.join(save_dir, '{}.mat'.format(basename)), {'result':[pred_map]})
                 print(f"Finished. {datetime.now().strftime('%H:%M:%S.%f')}")
 
 ####

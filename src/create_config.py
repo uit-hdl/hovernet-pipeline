@@ -10,7 +10,6 @@ if __name__ == '__main__':
     parser.add_argument('--preproc', default=False, action='store_true')
     # parser.add_argument('--step_size', help='80 if consep, 164 if pannuke', required=True) # TODEL
     # parser.add_argument('--win_size', help='540 if consep, 512 if pannuke', required=True) # TODEL
-    
 
     parser.add_argument('--inf_auto_find_chkpt', action='store_true')
     parser.add_argument('--inf_model')
@@ -32,6 +31,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--inf_auto_metric', default='valid_dice') # choices=['valid_dice', 'valid_mse', 'valid_acc', 'valid_dice_Inflammatory', ...]
     parser.add_argument('--inf_auto_comparator', default='>', choices=['>','<'])
+    parser.add_argument('--inf_batch_size', type=int, default=1) # 16
 
     parser.add_argument('--inf_data_list', required=True)
     parser.add_argument('--remap_labels', default=True, action='store_true')
@@ -91,6 +91,7 @@ if __name__ == '__main__':
 
             'inf_auto_metric': args.inf_auto_metric,
             'inf_auto_comparator': args.inf_auto_comparator,
+            'inf_batch_size': args.inf_batch_size,
   
             'inf_auto_find_chkpt' if args.inf_auto_find_chkpt else 'inf_model': \
                 args.inf_auto_find_chkpt if args.inf_auto_find_chkpt else args.inf_model,
