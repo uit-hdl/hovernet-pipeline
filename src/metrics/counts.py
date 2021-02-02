@@ -12,7 +12,7 @@ import argparse
 # This script was used to get counts per patient for UiT_Dataset
 ################################################################
 
-map_list = ['color_red', 'lymphoid', 'color_green', 'cancercells', 'fibroblasts']
+map_list = ["color_red", "lymphoid", "color_green", "cancercells", "fibroblasts"]
 
 
 class Patient:
@@ -26,7 +26,7 @@ class Patient:
 
         area = float(split_fname[3][1:])
 
-        self.images[filename] = int(count) / (area / (1000*1000))
+        self.images[filename] = int(count) / (area / (1000 * 1000))
         self.num = filename.split("_")[0]
 
     def get_average_count(self):
@@ -55,32 +55,32 @@ def rename(d, keymap):
     return new_dict
 
 
-def process_logs(tp='all'): # lymphoid
-    
-        for file in glob.glob("*.log"):
-            with open(file) as f:
-                log = f.read()
-                name = substitute_string_name(log.split(' : ')[0])
+def process_logs(tp="all"):  # lymphoid
 
-                d = literal_eval(log.split(' : ')[1])
-                d = {str(k):int(v) for k,v in d.items()}
-                d = rename(d, dict(zip(d.keys(), map_list)))
-                if (tp == 'all'):
-                    print (f'{name} %-% {d}')
-                else:
-                    print (f'{name}, {d[tp]}')
+    for file in glob.glob("*.log"):
+        with open(file) as f:
+            log = f.read()
+            name = substitute_string_name(log.split(" : ")[0])
+
+            d = literal_eval(log.split(" : ")[1])
+            d = {str(k): int(v) for k, v in d.items()}
+            d = rename(d, dict(zip(d.keys(), map_list)))
+            if tp == "all":
+                print(f"{name} %-% {d}")
+            else:
+                print(f"{name}, {d[tp]}")
 
 
 def substitute_string_name(name):
-    chunks = name.split('_')
+    chunks = name.split("_")
 
-    id_name = '_'.join([chunks[0], chunks[1], chunks[2]])
-    id_patch = '_'.join([chunks[3], chunks[4]])
-    coords = '_'.join([chunks[5], chunks[6], chunks[7], chunks[8]])
-    h_info = '_'.join([chunks[9], chunks[10]])
-    ext = chunks[-1].split('.')[0] + 'PNG'
+    id_name = "_".join([chunks[0], chunks[1], chunks[2]])
+    id_patch = "_".join([chunks[3], chunks[4]])
+    coords = "_".join([chunks[5], chunks[6], chunks[7], chunks[8]])
+    h_info = "_".join([chunks[9], chunks[10]])
+    ext = chunks[-1].split(".")[0] + "PNG"
 
-    return ('.'.join([id_name, id_patch, coords, h_info, ext]))
+    return ".".join([id_name, id_patch, coords, h_info, ext])
 
 
 def load_patients(filename):
@@ -95,6 +95,7 @@ def load_patients(filename):
                 patients[patient].add_file(target_file, count)
     return patients
 
+
 def load_patients_single_files(file_glob):
     patients = {}
     for f in glob.glob(file_glob):
@@ -108,6 +109,7 @@ def load_patients_single_files(file_glob):
                 patients[patient].add_file(f, count)
     return patients
 
+
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", help="Use single files format", action="store_true")
@@ -118,7 +120,7 @@ def get_arguments():
 
 if __name__ == "__main__":
     # process logs
-    process_logs(tp='lymphoid')
+    process_logs(tp="lymphoid")
     # print (np.array(gen_colors(5, random=False))*255)
 
     # counts per patient
@@ -135,4 +137,3 @@ if __name__ == "__main__":
         average = str(p_real.get_average_count())
         output = ",".join([p_real.num, minimum, maximum, median, average])
         print(output)
-    

@@ -9,8 +9,7 @@ from scipy import ndimage
 from scipy.ndimage import measurements
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import affine_transform, map_coordinates
-from scipy.ndimage.morphology import (distance_transform_cdt,
-                                      distance_transform_edt)
+from scipy.ndimage.morphology import distance_transform_cdt, distance_transform_edt
 from skimage import morphology as morph
 from skimage import img_as_ubyte
 from skimage.color import rgb2hed, hed2rgb, rgb2gray, gray2rgb, rgb2hsv
@@ -39,7 +38,7 @@ class GenInstance(ImageAugmentor):
         """
         current_max_id = np.amax(ann)
         inst_list = list(np.unique(ann))
-        inst_list.remove(0) # 0 is background
+        inst_list.remove(0)  # 0 is background
         for inst_id in inst_list:
             inst_map = np.array(ann == inst_id, np.uint8)
             remapped_ids = measurements.label(inst_map)[0]
@@ -47,8 +46,12 @@ class GenInstance(ImageAugmentor):
             ann[remapped_ids > 1] = remapped_ids[remapped_ids > 1]
             current_max_id = np.amax(ann)
         return ann
+
+
 ####
 import matplotlib.pyplot as plt
+
+
 class GenInstanceUnetMap(GenInstance):
     """
     Input annotation must be of original shape.
@@ -64,6 +67,7 @@ class GenInstanceUnetMap(GenInstance):
         w0 (int/float)   : Border weight parameter.
         sigma (int/float): Border width parameter.
     """
+
     def __init__(self, wc=None, w0=10.0, sigma=5.0, crop_shape=None):
         super(GenInstanceUnetMap, self).__init__()
         self.crop_shape = crop_shape
@@ -74,11 +78,9 @@ class GenInstanceUnetMap(GenInstance):
     def _remove_1px_boundary(self, ann):
         new_ann = np.zeros(ann.shape[:2], np.int32)
         inst_list = list(np.unique(ann))
-        inst_list.remove(0) # 0 is background
+        inst_list.remove(0)  # 0 is background
 
-        k = np.array([[0, 1, 0],
-                      [1, 1, 1],
-                      [0, 1, 0]], np.uint8)
+        k = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], np.uint8)
 
         for idx, inst_id in enumerate(inst_list):
             inst_map = np.array(ann == inst_id, np.uint8)
@@ -87,24 +89,24 @@ class GenInstanceUnetMap(GenInstance):
         return new_ann
 
     def _get_weight_map(self, ann, inst_list):
-        if len(inst_list) <= 1: # 1 instance only
+        if len(inst_list) <= 1:  # 1 instance only
             return np.zeros(ann.shape[:2])
-        stacked_inst_bgd_dst = np.zeros(ann.shape[:2] +(len(inst_list),))
+        stacked_inst_bgd_dst = np.zeros(ann.shape[:2] + (len(inst_list),))
 
         for idx, inst_id in enumerate(inst_list):
-            inst_bgd_map = np.array(ann != inst_id , np.uint8)
+            inst_bgd_map = np.array(ann != inst_id, np.uint8)
             inst_bgd_dst = distance_transform_edt(inst_bgd_map)
-            stacked_inst_bgd_dst[...,idx] = inst_bgd_dst
+            stacked_inst_bgd_dst[..., idx] = inst_bgd_dst
 
         near1_dst = np.amin(stacked_inst_bgd_dst, axis=2)
-        near2_dst = np.expand_dims(near1_dst ,axis=2)
+        near2_dst = np.expand_dims(near1_dst, axis=2)
         near2_dst = stacked_inst_bgd_dst - near2_dst
-        near2_dst[near2_dst == 0] = np.PINF # very large
+        near2_dst[near2_dst == 0] = np.PINF  # very large
         near2_dst = np.amin(near2_dst, axis=2)
-        near2_dst[ann > 0] = 0 # the instances
+        near2_dst[ann > 0] = 0  # the instances
         near2_dst = near2_dst + near1_dst
         # to fix pixel where near1 == near2
-        near2_eve = np.expand_dims(near1_dst ,axis=2)
+        near2_eve = np.expand_dims(near1_dst, axis=2)
         # to avoide the warning of a / 0
         near2_eve = (1.0 + stacked_inst_bgd_dst) / (1.0 + near2_eve)
         near2_eve[near2_eve != 1] = 0
@@ -113,13 +115,13 @@ class GenInstanceUnetMap(GenInstance):
         #
         pix_dst = near1_dst + near2_dst
         pen_map = pix_dst / self.sigma
-        pen_map = self.w0 * np.exp(- pen_map**2 / 2)
-        pen_map[ann > 0] = 0 # inner instances zero
+        pen_map = self.w0 * np.exp(-(pen_map ** 2) / 2)
+        pen_map[ann > 0] = 0  # inner instances zero
         return pen_map
 
     def _augment(self, img, _):
         img = np.copy(img)
-        orig_ann = img[...,0] # instance ID map
+        orig_ann = img[..., 0]  # instance ID map
         fixed_ann = self._fix_mirror_padding(orig_ann)
         # setting 1 boundary pix of each instance to background
         fixed_ann = self._remove_1px_boundary(fixed_ann)
@@ -127,11 +129,11 @@ class GenInstanceUnetMap(GenInstance):
         # cant do the shortcut because near2 also needs instances
         # outside of cropped portion
         inst_list = list(np.unique(fixed_ann))
-        inst_list.remove(0) # 0 is background
+        inst_list.remove(0)  # 0 is background
         wmap = self._get_weight_map(fixed_ann, inst_list)
 
         if self.wc is None:
-            wmap += 1 # uniform weight for all classes
+            wmap += 1  # uniform weight for all classes
         else:
             class_weights = np.zeros_like(fixed_ann.shape[:2])
             for class_id, class_w in self.wc.items():
@@ -143,6 +145,7 @@ class GenInstanceUnetMap(GenInstance):
         img = np.dstack([img, wmap])
 
         return img
+
 
 ####
 class GenInstanceContourMap(GenInstance):
@@ -158,41 +161,46 @@ class GenInstanceContourMap(GenInstance):
            eroded instance from the dilated instance.
 
     """
+
     def __init__(self, crop_shape=None):
         super(GenInstanceContourMap, self).__init__()
         self.crop_shape = crop_shape
 
     def _augment(self, img, _):
         img = np.copy(img)
-        orig_ann = img[...,0] # instance ID map
+        orig_ann = img[..., 0]  # instance ID map
         fixed_ann = self._fix_mirror_padding(orig_ann)
-            # re-cropping with fixed instance id map
+        # re-cropping with fixed instance id map
         crop_ann = cropping_center(fixed_ann, self.crop_shape)
 
         # setting 1 boundary pix of each instance to background
         contour_map = np.zeros(fixed_ann.shape[:2], np.uint8)
 
         inst_list = list(np.unique(crop_ann))
-        inst_list.remove(0) # 0 is background
+        inst_list.remove(0)  # 0 is background
 
-        k_disk = np.array([
-            [0, 0, 0, 1, 0, 0, 0],
-            [0, 0, 1, 1, 1, 0, 0],
-            [0, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1],
-            [0, 1, 1, 1, 1, 1, 0],
-            [0, 0, 1, 1, 1, 0, 0],
-            [0, 0, 0, 1, 0, 0, 0],
-        ], np.uint8)
+        k_disk = np.array(
+            [
+                [0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 1, 1, 0, 0],
+                [0, 1, 1, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1, 1, 1],
+                [0, 1, 1, 1, 1, 1, 0],
+                [0, 0, 1, 1, 1, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0],
+            ],
+            np.uint8,
+        )
 
         for inst_id in inst_list:
             inst_map = np.array(fixed_ann == inst_id, np.uint8)
             inner = cv2.erode(inst_map, k_disk, iterations=1)
             outer = cv2.dilate(inst_map, k_disk, iterations=1)
             contour_map += outer - inner
-        contour_map[contour_map > 0] = 1 # binarize
+        contour_map[contour_map > 0] = 1  # binarize
         img = np.dstack([fixed_ann, contour_map])
         return img
+
 
 ####
 class GenInstanceHV(GenInstance):
@@ -209,7 +217,7 @@ class GenInstanceHV(GenInstance):
 
     def _augment(self, img, _):
         img = np.copy(img)
-        orig_ann = img[...,0] # instance ID map
+        orig_ann = img[..., 0]  # instance ID map
         fixed_ann = self._fix_mirror_padding(orig_ann)
         # re-cropping with fixed instance id map
         crop_ann = cropping_center(fixed_ann, self.crop_shape)
@@ -220,7 +228,7 @@ class GenInstanceHV(GenInstance):
         y_map = np.zeros(orig_ann.shape[:2], dtype=np.float32)
 
         inst_list = list(np.unique(crop_ann))
-        inst_list.remove(0) # 0 is background
+        inst_list.remove(0)  # 0 is background
         for inst_id in inst_list:
             inst_map = np.array(fixed_ann == inst_id, np.uint8)
             inst_box = bounding_box(inst_map)
@@ -231,11 +239,9 @@ class GenInstanceHV(GenInstance):
             inst_box[1] += 2
             inst_box[3] += 2
 
-            inst_map = inst_map[inst_box[0]:inst_box[1],
-                                inst_box[2]:inst_box[3]]
+            inst_map = inst_map[inst_box[0] : inst_box[1], inst_box[2] : inst_box[3]]
 
-            if inst_map.shape[0] < 2 or \
-                inst_map.shape[1] < 2:
+            if inst_map.shape[0] < 2 or inst_map.shape[1] < 2:
                 continue
 
             # instance center of mass, rounded to nearest pixel
@@ -244,8 +250,8 @@ class GenInstanceHV(GenInstance):
             inst_com[0] = int(inst_com[0] + 0.5)
             inst_com[1] = int(inst_com[1] + 0.5)
 
-            inst_x_range = np.arange(1, inst_map.shape[1]+1)
-            inst_y_range = np.arange(1, inst_map.shape[0]+1)
+            inst_x_range = np.arange(1, inst_map.shape[1] + 1)
+            inst_y_range = np.arange(1, inst_map.shape[0] + 1)
             # shifting center of pixels grid to instance center of mass
             inst_x_range -= inst_com[1]
             inst_y_range -= inst_com[0]
@@ -255,33 +261,32 @@ class GenInstanceHV(GenInstance):
             # remove coord outside of instance
             inst_x[inst_map == 0] = 0
             inst_y[inst_map == 0] = 0
-            inst_x = inst_x.astype('float32')
-            inst_y = inst_y.astype('float32')
+            inst_x = inst_x.astype("float32")
+            inst_y = inst_y.astype("float32")
 
             # normalize min into -1 scale
             if np.min(inst_x) < 0:
-                inst_x[inst_x < 0] /= (-np.amin(inst_x[inst_x < 0]))
+                inst_x[inst_x < 0] /= -np.amin(inst_x[inst_x < 0])
             if np.min(inst_y) < 0:
-                inst_y[inst_y < 0] /= (-np.amin(inst_y[inst_y < 0]))
+                inst_y[inst_y < 0] /= -np.amin(inst_y[inst_y < 0])
             # normalize max into +1 scale
             if np.max(inst_x) > 0:
-                inst_x[inst_x > 0] /= (np.amax(inst_x[inst_x > 0]))
+                inst_x[inst_x > 0] /= np.amax(inst_x[inst_x > 0])
             if np.max(inst_y) > 0:
-                inst_y[inst_y > 0] /= (np.amax(inst_y[inst_y > 0]))
+                inst_y[inst_y > 0] /= np.amax(inst_y[inst_y > 0])
 
             ####
-            x_map_box = x_map[inst_box[0]:inst_box[1],
-                              inst_box[2]:inst_box[3]]
+            x_map_box = x_map[inst_box[0] : inst_box[1], inst_box[2] : inst_box[3]]
             x_map_box[inst_map > 0] = inst_x[inst_map > 0]
 
-            y_map_box = y_map[inst_box[0]:inst_box[1],
-                              inst_box[2]:inst_box[3]]
+            y_map_box = y_map[inst_box[0] : inst_box[1], inst_box[2] : inst_box[3]]
             y_map_box[inst_map > 0] = inst_y[inst_map > 0]
 
-        img = img.astype('float32')
+        img = img.astype("float32")
         img = np.dstack([img, x_map, y_map])
 
         return img
+
 
 ####
 class GenInstanceDistance(GenInstance):
@@ -297,6 +302,7 @@ class GenInstanceDistance(GenInstance):
     Can be interpreted as the inverse distance map of nuclear pixels to
     the centroid.
     """
+
     def __init__(self, crop_shape=None, inst_norm=True):
         super(GenInstanceDistance, self).__init__()
         self.crop_shape = crop_shape
@@ -304,7 +310,7 @@ class GenInstanceDistance(GenInstance):
 
     def _augment(self, img, _):
         img = np.copy(img)
-        orig_ann = img[...,0] # instance ID map
+        orig_ann = img[..., 0]  # instance ID map
         fixed_ann = self._fix_mirror_padding(orig_ann)
         # re-cropping with fixed instance id map
         crop_ann = cropping_center(fixed_ann, self.crop_shape)
@@ -312,7 +318,7 @@ class GenInstanceDistance(GenInstance):
         orig_dst = np.zeros(orig_ann.shape, dtype=np.float32)
 
         inst_list = list(np.unique(crop_ann))
-        inst_list.remove(0) # 0 is background
+        inst_list.remove(0)  # 0 is background
         for inst_id in inst_list:
             inst_map = np.array(fixed_ann == inst_id, np.uint8)
             inst_box = bounding_box(inst_map)
@@ -323,37 +329,36 @@ class GenInstanceDistance(GenInstance):
             inst_box[1] += 2
             inst_box[3] += 2
 
-            inst_map = inst_map[inst_box[0]:inst_box[1],
-                                inst_box[2]:inst_box[3]]
+            inst_map = inst_map[inst_box[0] : inst_box[1], inst_box[2] : inst_box[3]]
 
-            if inst_map.shape[0] < 2 or \
-                inst_map.shape[1] < 2:
+            if inst_map.shape[0] < 2 or inst_map.shape[1] < 2:
                 continue
 
             # chessboard distance map generation
             # normalize distance to 0-1
             inst_dst = distance_transform_cdt(inst_map)
-            inst_dst = inst_dst.astype('float32')
+            inst_dst = inst_dst.astype("float32")
             if self.inst_norm:
                 max_value = np.amax(inst_dst)
                 if max_value <= 0:
-                    continue # HACK: temporay patch for divide 0 i.e no nuclei (how?)
-                inst_dst = (inst_dst / np.amax(inst_dst))
+                    continue  # HACK: temporay patch for divide 0 i.e no nuclei (how?)
+                inst_dst = inst_dst / np.amax(inst_dst)
 
             ####
-            dst_map_box = orig_dst[inst_box[0]:inst_box[1],
-                                   inst_box[2]:inst_box[3]]
+            dst_map_box = orig_dst[inst_box[0] : inst_box[1], inst_box[2] : inst_box[3]]
             dst_map_box[inst_map > 0] = inst_dst[inst_map > 0]
 
         #
-        img = img.astype('float32')
+        img = img.astype("float32")
         img = np.dstack([img, orig_dst])
 
         return img
 
+
 ####
 class GaussianBlur(ImageAugmentor):
     """ Gaussian blur the image with random window size"""
+
     def __init__(self, max_size=3):
         """
         Args:
@@ -369,12 +374,18 @@ class GaussianBlur(ImageAugmentor):
         return sx, sy
 
     def _augment(self, img, s):
-        return np.reshape(cv2.GaussianBlur(img, s, sigmaX=0, sigmaY=0,
-                                           borderType=cv2.BORDER_REPLICATE), img.shape)
+        return np.reshape(
+            cv2.GaussianBlur(
+                img, s, sigmaX=0, sigmaY=0, borderType=cv2.BORDER_REPLICATE
+            ),
+            img.shape,
+        )
+
 
 ####
 class BinarizeLabel(ImageAugmentor):
     """ Convert labels to binary maps"""
+
     def __init__(self):
         super(BinarizeLabel, self).__init__()
 
@@ -383,13 +394,15 @@ class BinarizeLabel(ImageAugmentor):
 
     def _augment(self, img, s):
         img = np.copy(img)
-        arr = img[...,0]
+        arr = img[..., 0]
         arr[arr > 0] = 1
         return img
+
 
 ####
 class MedianBlur(ImageAugmentor):
     """ Median blur the image with random window size"""
+
     def __init__(self, max_size=3):
         """
         Args:
@@ -417,7 +430,9 @@ class eqHistCV(ImageAugmentor):
 
     def _augment(self, img, s):
         R, G, B = cv2.split(np.uint8(img))
-        return cv2.merge((cv2.equalizeHist(R), cv2.equalizeHist(G), cv2.equalizeHist(B)))
+        return cv2.merge(
+            (cv2.equalizeHist(R), cv2.equalizeHist(G), cv2.equalizeHist(B))
+        )
 
 
 class eqRGB2HED(ImageAugmentor):
@@ -434,6 +449,7 @@ class eqRGB2HED(ImageAugmentor):
         image[..., 1] = equalize_hist(image[..., 1])
         image[..., 2] = equalize_hist(image[..., 2])
         return img_as_ubyte(image)
+
 
 class pipeHEDAugment(ImageAugmentor):
     def __init__(self,):
@@ -461,6 +477,7 @@ class pipeHEDAugment(ImageAugmentor):
         d = rescale_intensity(ihc_hed[..., 2], out_range=(0, 1))
         return img_as_ubyte(np.dstack((np.zeros_like(h), d, h)))
 
+
 class linearAugmentation(ImageAugmentor):
     def __init__(self,):
         super(linearAugmentation, self).__init__()
@@ -470,7 +487,7 @@ class linearAugmentation(ImageAugmentor):
 
     def _augment(self, img, s):
         alpha = [0.95, 1.05]
-        bias = [-0.01,  0.01] # -0.05,  0.05
+        bias = [-0.01, 0.01]  # -0.05,  0.05
         hed_img = rgb2hed(img)
         for channel in range(3):
             hed_img[..., channel] *= random.choice(np.arange(alpha[0], alpha[1], 0.01))

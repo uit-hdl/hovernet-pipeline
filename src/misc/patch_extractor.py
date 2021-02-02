@@ -26,28 +26,27 @@ class PatchExtractor(object):
         >>> img = np.full([1200, 1200, 3], 255, np.uint8)
         >>> patches = xtractor.extract(img, 'mirror')
     """
+
     def __init__(self, win_size, step_size, debug=False):
 
-        self.patch_type = 'mirror'
-        self.win_size  = win_size
+        self.patch_type = "mirror"
+        self.win_size = win_size
         self.step_size = step_size
-        self.debug   = debug
+        self.debug = debug
         self.counter = 0
 
     def __get_patch(self, x, ptx):
-        pty = (ptx[0]+self.win_size[0],
-               ptx[1]+self.win_size[1])
-        win = x[ptx[0]:pty[0],
-                ptx[1]:pty[1]]
-        assert win.shape[0] == self.win_size[0] and \
-               win.shape[1] == self.win_size[1],    \
-               '[BUG] Incorrect Patch Size {0}'.format(win.shape)
+        pty = (ptx[0] + self.win_size[0], ptx[1] + self.win_size[1])
+        win = x[ptx[0] : pty[0], ptx[1] : pty[1]]
+        assert (
+            win.shape[0] == self.win_size[0] and win.shape[1] == self.win_size[1]
+        ), "[BUG] Incorrect Patch Size {0}".format(win.shape)
         if self.debug:
-            if self.patch_type == 'mirror':
+            if self.patch_type == "mirror":
                 cen = cropping_center(win, self.step_size)
-                cen = cen[...,self.counter % 3]
+                cen = cen[..., self.counter % 3]
                 cen.fill(150)
-            cv2.rectangle(x,ptx,pty,(255,0,0),2)
+            cv2.rectangle(x, ptx, pty, (255, 0, 0), 2)
             plt.imshow(x)
             plt.show(block=False)
             plt.pause(1)
@@ -129,7 +128,7 @@ class PatchExtractor(object):
         padl = diff_w // 2
         padr = diff_w - padl
 
-        pad_type = 'constant' if self.debug else 'reflect'
+        pad_type = "constant" if self.debug else "reflect"
         x = np.lib.pad(x, ((padt, padb), (padl, padr), (0, 0)), pad_type)
         sub_patches = self.__extract_valid(x)
         return sub_patches
@@ -137,22 +136,24 @@ class PatchExtractor(object):
     def extract(self, x, patch_type):
         patch_type = patch_type.lower()
         self.patch_type = patch_type
-        if patch_type == 'valid':
+        if patch_type == "valid":
             return self.__extract_valid(x)
-        elif patch_type == 'mirror':
+        elif patch_type == "mirror":
             return self.__extract_mirror(x)
         else:
-            assert False, 'Unknown Patch Type [%s]' % patch_type
+            assert False, "Unknown Patch Type [%s]" % patch_type
         return
+
+
 #####
 
 ###########################################################################
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # toy example for debug
     # 355x355, 480x480
     xtractor = PatchExtractor((450, 450), (120, 120), debug=True)
     a = np.full([1200, 1200, 3], 255, np.uint8)
 
-    xtractor.extract(a, 'mirror')
-    xtractor.extract(a, 'valid')
+    xtractor.extract(a, "mirror")
+    xtractor.extract(a, "valid")
