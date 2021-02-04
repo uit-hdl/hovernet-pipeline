@@ -8,7 +8,7 @@ import numpy as np
 import scipy.io as sio
 import pandas as pd
 
-from info import MAP_TYPES
+from misc.info import MAP_TYPES
 
 from metrics.stats_utils import *
 
