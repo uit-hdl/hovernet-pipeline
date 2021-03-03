@@ -15,27 +15,19 @@ MAP_TYPES = {
 }
 
 COLOR_PALETE = {
-    "Inflammatory": [0.0, 255.0, 0.0],  # bright green
-    "Dead cells": [255.0, 255.0, 0.0],  # bright yellow
-    "Neoplastic cells": [255.0, 0.0, 0.0],  # red            # aka Epithelial malignant
-    "Epithelial": [0.0, 0.0, 255.0],  # dark blue      # aka Epithelial healthy
-    "Misc": [0.0, 0.0, 0.0],  # pure black     # aka 'garbage class'
-    "Spindle": [
-        0.0,
-        255.0,
-        255.0,
-    ],  # cyan           # Fibroblast, Muscle and Endothelial cells
-    "Connective": [
-        0.0,
-        220.0,
-        220.0,
-    ],  # darker cyan    # Connective plus Soft tissue cells
-    "Background": [255.0, 0.0, 170.0],  # pink
+    "Inflammatory": (0.0, 255.0, 0.0),  # bright green
+    "Dead cells": (255.0, 255.0, 0.0),  # bright yellow
+    "Neoplastic cells": (255.0, 0.0, 0.0),  # red  # aka Epithelial malignant
+    "Epithelial": (0.0, 0.0, 255.0),  # dark blue  # aka Epithelial healthy
+    "Misc": (0.0, 0.0, 0.0),  # pure black  # aka 'garbage class'
+    "Spindle": (0.0, 255.0, 255.0),  # cyan  # Fibroblast, Muscle and Endothelial cells
+    "Connective": (0.0, 220.0, 220.0),  # darker cyan    # Connective plus Soft tissue cells
+    "Background": (255.0, 0.0, 170.0),  # pink
     ###
-    "light green": [170.0, 255.0, 0.0],  # light green
-    "purple": [170.0, 0.0, 255.0],  # purple
-    "orange": [255.0, 170.0, 0.0],  # orange
-    "black": [32.0, 32.0, 32.0],  # black
+    "light green": (170.0, 255.0, 0.0),  # light green
+    "purple": (170.0, 0.0, 255.0),  # purple
+    "orange": (255.0, 170.0, 0.0),  # orange
+    "black": (32.0, 32.0, 32.0),  # black
 }
 
 # orignal size (win size) - input size - output size (step size)
