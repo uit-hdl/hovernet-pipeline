@@ -1,0 +1,40 @@
+hv_monusac:
+  data_dir: data_hv_monusac/
+  data_modes:
+  - train
+  - test
+  exp_id: '1.0'
+  extract_type: mirror
+  include_extract: true
+  inf_auto_comparator: '>'
+  inf_auto_find_chkpt: true
+  inf_auto_metric: valid_dice
+  inf_batch_size: 16
+  inf_data_list:
+  - data_hv_monusac/test/Images/
+  input_augs: p_linear_2
+  input_norm: true
+  input_prefix: /data/input/
+  mode: hover
+  model_type: np_hv_opt
+  nuclei_types:
+    Epithelial: 1
+    Lymphocyte: 2
+    Macrophage: 3
+    Neutrophil: 4
+  outline: null
+  output_prefix: /data/output/
+  remap_labels: true
+  seed: 10
+  skip_types: null
+  step_size:
+  - 164
+  - 164
+  train_dir:
+  - train/Annotations
+  type_classification: true
+  valid_dir:
+  - test/Annotations
+  win_size:
+  - 512
+  - 512

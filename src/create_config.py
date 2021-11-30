@@ -4,10 +4,9 @@ from misc.info import MODEL_TYPES, MAP_TYPES, STEP_SIZE, WIN_SIZE
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--profile", required=True, choices=["hv_consep", "hv_pannuke"])
+    parser.add_argument("--profile", required=True, choices=["hv_consep", "hv_pannuke", "hv_monusac"])
     parser.add_argument("--data_dir", required=True)
     # parser.add_argument('--model_type', required=True, choices=['np_hv', 'np_hv_opt']) # TODEL
-    parser.add_argument("--preproc", default=False, action="store_true")
     # parser.add_argument('--step_size', help='80 if consep, 164 if pannuke', required=True) # TODEL
     # parser.add_argument('--win_size', help='540 if consep, 512 if pannuke', required=True) # TODEL
 
@@ -38,7 +37,6 @@ if __name__ == "__main__":
     parser.add_argument("--inf_data_list", required=True)
     parser.add_argument("--remap_labels", default=True, action="store_true")
 
-    parser.add_argument("--norm_brightness", default=True, action="store_true")
     parser.add_argument("--mode", default="train")
     parser.add_argument("--image", default="train_1")
 
@@ -50,6 +48,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--outline", default=None)
     parser.add_argument("--skip_types", default=None)
+    parser.add_argument("--process_mapping", default=None)
 
     args = parser.parse_args()
 
@@ -62,15 +61,7 @@ if __name__ == "__main__":
             "exp_id": args.id,
             "input_prefix": args.input_prefix,
             "output_prefix": args.output_prefix,
-            "include_preproc": args.preproc,
             "include_extract": args.extract,
-            "stain_norm": {
-                "norm_brightness": args.norm_brightness,
-                "mode": args.mode,
-                "image": args.image,
-            }
-            if args.preproc
-            else None,
             "data_dir": args.data_dir,
             "extract_type": args.extract_type,
             # 'img_ext': args.img_ext,
@@ -106,6 +97,7 @@ if __name__ == "__main__":
             "skip_types": args.skip_types.split(",")
             if (args.skip_types is not None)
             else args.skip_types,
+            "process_mapping": args.process_mapping,
         }
     }
 

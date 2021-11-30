@@ -24,11 +24,6 @@ H_PROFILE=hv_consep python create_config.py \
 
 # --inf_model /data/output/export/serving/serving/variables/variables.data-00000-of-00001 \
 
-# --preproc \
-# --norm_brightness \
-# --mode train \
-# --image train_1 \
-
 # --skip_types 'Misc,Spindle' \
 # --outline 'Inflammatory' \
 # --extract_type mirror \

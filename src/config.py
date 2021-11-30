@@ -54,11 +54,10 @@ class Config(object):
             ".png" if data_config["img_ext"] is None else data_config["img_ext"]
         )
 
-        for step in ["preproc", "extract", "train", "infer", "export", "process"]:
+        for step in ["extract", "train", "infer", "export", "process"]:
             exec(
                 f"self.out_{step}_root = os.path.join(data_config['output_prefix'], '{step}')"
             )
-        # self.out_preproc_root = os.path.join(data_config['output_prefix'], 'preprocess')
         # self.out_extract_root = os.path.join(data_config['output_prefix'], 'extract')
 
         self.img_dirs = {
@@ -82,42 +81,12 @@ class Config(object):
             )
         }
 
-        # normalized images
-        self.out_preproc = None
-        if data_config["include_preproc"]:
-            self.out_preproc = {
-                k: v
-                for k, v in zip(
-                    self.data_modes,
-                    [
-                        os.path.join(
-                            self.out_preproc_root, self.model_config, mode, "Images"
-                        )
-                        for mode in self.data_modes
-                    ],
-                )
-            }
-
-        if data_config["stain_norm"] is not None:
-            # self.target_norm = f"{self._data_dir}/{self.data_modes[0]}/'Images'/{data_config['stain_norm']['target']}{self.img_ext}"
-            self.norm_target = os.path.join(
-                self.data_dir_root,
-                data_config["stain_norm"]["mode"],
-                "Images",
-                f"{data_config['stain_norm']['image']}{self.img_ext}",
-            )
-            self.norm_brightness = data_config["stain_norm"]["norm_brightness"]
-
-        self.normalized = (data_config["include_preproc"]) and (
-            data_config["stain_norm"] is not None
-        )
         win_code = "{}_{}x{}_{}x{}{}".format(
             self.model_config,
             self.win_size[0],
             self.win_size[1],
             self.step_size[0],
             self.step_size[1],
-            "_stain_norm" if self.normalized else "",
         )
         self.out_extract = {
             k: v
@@ -285,6 +254,9 @@ class Config(object):
                     ]
                 ),
                 imgaug.ToUint8(),
+            ],
+            "p_neutral": [
+                
             ],
             "p_hed_random": [
                 imgaug.RandomApplyAug(
