@@ -1,0 +1,123 @@
+####### Example config with monusac data
+
+### Model name, used for folder naming
+name: monusac_aug
+
+### Key id for parameters (hv_consep, hv_pannuke, hv_monusac)
+profile: hv_monusac
+
+### Id label for naming, seprates profiles, could be used as versioning
+id: 1.0
+
+### Input prefix, used for input data
+### example: input_prefix + data_dir + data_mode[0] + 'Images'
+### result: /data/input/data_hv_monusac/train/Images
+input_prefix: /data/input/
+
+### Output prefix, used for output data
+output_prefix: /data/output/
+
+#------------------------------------------------------
+### Following info is in misc/info.py, could be ommited
+### dict with types mapping (name -> int)
+# nuclei_types:
+#   Epithelial: 1
+#   Lymphocyte: 2
+#   Macrophage: 3
+#   Neutrophil: 4
+### Step and windows sizes, used by model in training and by patch extractor
+# step_size: [164, 164]
+# win_size: [512, 512]
+#------------------------------------------------------
+
+#######################################################
+### 1 step - extract patches
+### Image and annotations extension, default .png and .npy
+img_ext: .png
+data_ext: .npy
+
+### data root directory, used with input_prefix
+data_dir: data_hv_monusac
+
+### If extract step is needed, it is needed by default
+include_extract: true
+
+### Type of patch extraction (mirror, valid)
+extract_type: mirror
+
+### Data modes or folders used in dataset to perform extraction on
+data_modes:
+  - train
+  - test
+  - valid
+
+#######################################################
+### 2nd step - training
+### Model type used for training, set up in misc/info.py, omitted
+# model_type: np_hv_opt
+
+### Seed used in training procedure
+# seed: 10
+
+### Augmentation scheme, customized in config.py. (p_standard, p_linear_2)
+input_augs: p_linear_2
+
+### If to normalize input [0,1], default - true
+input_norm: true
+
+### Training annotations data prefix
+train_dir:
+- train/Annotations
+
+### Validation annotations data prefix, used in training
+valid_dir:
+- valid/Annotations
+
+### Number of processes used in train and validation steps, defaults are 8 and 4 respectively.
+# nr_procs_train: 8
+# nr_procs_valid: 4
+
+#######################################################
+# 3rd step - inference
+### If model should be found based on config file, inf_auto_comparator and inf_auto_metric.
+### If not stated or false inf_model should be specified with full path to model to use.
+### example: inf_model: .../dm_model.npz
+### example2: inf_model: .../serving/variables/variables.data-00000-of-00001
+inf_auto_find_chkpt: true
+
+### Comparator used to compare models, default '>'
+inf_auto_comparator: '>'
+
+### Metric used to choose best model
+inf_auto_metric: valid_dice
+
+### Batch size used in inference
+inf_batch_size: 16
+
+### Path to images to perform inference on, used automatically with input_prefix
+inf_data_list:
+  - data_hv_monusac/test/Images/
+
+### Inference images extension, default .png
+# inf_imgs_ext: .png
+
+#######################################################
+### 4th step - Processing
+### What type of nuclei should be outlined during processing, one int, see MAP_TYPES in misc/info.py
+### example: outline: 1
+outline: null
+
+### If label remapping (nuclei instances) is needed in processing. Default: true
+remap_labels: true
+
+### What types could be ommitted from processing. They won't be shown on the resulting image. List of ints, see MAP_TYPES in misc/info.py
+### example: skip_types: [1, 2, 3]
+skip_types: null
+
+### What types should be merged or changed during processing. Used when model is used with dataset with different labels.
+### exmample: transform label classes from 1 and 2 to 3 and 5 respectively.
+### process_maping: {1:3, 2:5}
+process_maping: null
+
+#######################################################
+### 5th step - Model export

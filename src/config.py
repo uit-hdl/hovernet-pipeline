@@ -1,4 +1,5 @@
 import os
+import sys
 import importlib
 import random
 import yaml
@@ -24,41 +25,47 @@ from loader.augs import (
     linearAugmentation,
 )
 
-from misc.info import COLOR_PALETE
+from misc.info import COLOR_PALETE, MAP_TYPES, MODEL_TYPES, STEP_SIZE, WIN_SIZE
 from misc.utils import get_best_chkpts
 
 ####
 class Config(object):
     def __init__(self, verbose=True):
-        self.model_config = os.environ["H_PROFILE"] if "H_PROFILE" in os.environ else ""
-        data_config = defaultdict(
-            lambda: None,
-            yaml.load(open("config.yml"), Loader=yaml.FullLoader)[self.model_config],
-        )
+        if os.path.exists('config.yml'):
+            data_config = defaultdict(
+                lambda: None,
+                yaml.load(open("config.yml"), Loader=yaml.FullLoader),
+            )
+        else:
+            print("No config.yml file was found. Please create one and rename as 'config.yml'")
+            sys.exit()
 
-        # Validation
-        assert data_config["input_prefix"] is not None
-        assert data_config["output_prefix"] is not None
+        self.model_config = data_config["profile"]
 
+        input_prefix = '/data/input/' if data_config["input_prefix"] is None else data_config["input_prefix"]
+        output_prefix = '/data/output/' if data_config["output_prefix"] is None else data_config["output_prefix"]
+    
         # Load config yml file
-        self.log_path = data_config["output_prefix"]  # log root path
+        self.log_path = output_prefix  # log root path
         self.data_dir_root = os.path.join(
-            data_config["input_prefix"], data_config["data_dir"]
+            input_prefix, data_config["data_dir"]
         )  # without modes
 
-        self.extract_type = data_config["extract_type"]
+        self.extract_type = data_config["extract_type"] if data_config["extract_type"] is not None else 'mirror'
         self.data_modes = data_config["data_modes"]
-        self.win_size = data_config["win_size"]
-        self.step_size = data_config["step_size"]
+
+        self.win_size = data_config["win_size"] if data_config["win_size"] is not None else WIN_SIZE[self.model_config]
+        self.step_size = data_config["step_size"] if data_config["step_size"] is not None else STEP_SIZE[self.model_config]
+        
         self.img_ext = (
             ".png" if data_config["img_ext"] is None else data_config["img_ext"]
         )
 
-        for step in ["extract", "train", "infer", "export", "process"]:
+        for step in ["extract", "train", "infer", "process", "export"]:
             exec(
-                f"self.out_{step}_root = os.path.join(data_config['output_prefix'], '{step}')"
+                f"self.out_{step}_root = os.path.join(output_prefix, '{step}')"
             )
-        # self.out_extract_root = os.path.join(data_config['output_prefix'], 'extract')
+        # self.out_extract_root = os.path.join(output_prefix, 'extract')
 
         self.img_dirs = {
             k: v
@@ -80,14 +87,7 @@ class Config(object):
                 ],
             )
         }
-
-        win_code = "{}_{}x{}_{}x{}{}".format(
-            self.model_config,
-            self.win_size[0],
-            self.win_size[1],
-            self.step_size[0],
-            self.step_size[1],
-        )
+        win_code = f"{self.model_config}_{self.win_size[0]}x{self.win_size[1]}_{self.step_size[0]}x{self.step_size[1]}"
         self.out_extract = {
             k: v
             for k, v in zip(
@@ -100,18 +100,13 @@ class Config(object):
         }
 
         # init model params
-        self.seed = data_config["seed"]
-        mode = data_config["mode"]
-        self.model_type = data_config["model_type"]
-
+        self.seed = data_config["seed"] if data_config["seed"] is not None else 10
+        self.model_type = data_config["model_type"] if data_config["model_type"] is not None else MODEL_TYPES[self.model_config]
         self.nr_classes = 2  # Nuclei Pixels vs Background
-
-        self.nuclei_type_dict = data_config["nuclei_types"]
+        self.nuclei_type_dict = data_config["nuclei_types"] if data_config["nuclei_types"] is not None else MAP_TYPES[self.model_config]
         self.nr_types = len(self.nuclei_type_dict.values()) + 1  # plus background
 
-        #### Dynamically setting the config file into variable
-        if mode == "hover":
-            config_file = importlib.import_module("opt.hover")
+        config_file = importlib.import_module("opt.hover")
         config_dict = config_file.__getattribute__(self.model_type)
 
         for variable, value in config_dict.items():
@@ -119,10 +114,8 @@ class Config(object):
 
         self.color_palete = COLOR_PALETE
 
-        # self.model_name = f"{self.model_config}-{self.model_type}-{data_config['input_augs']}-{data_config['exp_id']}"
-        self.model_name = (
-            f"{self.model_config}-{data_config['input_augs']}-{data_config['exp_id']}"
-        )
+        # self.model_name = f"{data_config['profile']}-{data_config['input_augs']}-{data_config['id']}"
+        self.model_name = f"{data_config['name']}-{data_config['id']}"
 
         self.data_ext = (
             ".npy" if data_config["data_ext"] is None else data_config["data_ext"]
@@ -131,7 +124,8 @@ class Config(object):
 
         # self.train_dir = data_config['train_dir']
         # self.valid_dir = data_config['valid_dir']
-        if data_config["include_extract"]:
+        include_extract = True if data_config["include_extract"] is None else data_config["include_extract"]
+        if include_extract:
             self.train_dir = [
                 os.path.join(self.out_extract_root, win_code, x)
                 for x in data_config["train_dir"]
@@ -160,9 +154,10 @@ class Config(object):
             else data_config["nr_procs_valid"]
         )
 
-        self.input_norm = data_config["input_norm"]  # normalize RGB to 0-1 range
+        # normalize RGB to 0-1 range
+        self.input_norm = data_config["input_norm"] if data_config["input_norm"] is not None else True
 
-        # self.save_dir = os.path.join(data_config['output_prefix'], 'train', self.model_name)
+        # self.save_dir = os.path.join(output_prefix, 'train', self.model_name)
         self.save_dir = os.path.join(self.out_train_root, self.model_name)
 
         #### Info for running inference
@@ -173,7 +168,7 @@ class Config(object):
             self.inf_model_path = os.path.join(self.save_dir)
         else:
             self.inf_model_path = os.path.join(
-                data_config["input_prefix"], "models", data_config["inf_model"]
+                input_prefix, "models", data_config["inf_model"]
             )
         # self.save_dir + '/model-19640.index'
 
@@ -192,7 +187,7 @@ class Config(object):
 
         # rootdir, outputdirname, subdir1, subdir2(opt) ...
         self.inf_data_list = [
-            os.path.join(data_config["input_prefix"], x)
+            os.path.join(input_prefix, x)
             for x in data_config["inf_data_list"]
         ]
 
@@ -202,22 +197,26 @@ class Config(object):
             else os.path.basename(f"{data_config['inf_model'].split('.')[0]}")
         )
 
-        self.inf_auto_metric = data_config["inf_auto_metric"]
+        self.inf_auto_metric = data_config["inf_auto_metric"] if data_config["inf_auto_metric"] is not None else 'valid_dice'
         self.inf_output_dir = os.path.join(
             self.out_infer_root,
             f"{model_used}.{''.join(data_config['inf_data_list']).replace('/', '_').rstrip('_')}.{self.inf_auto_metric}",
         )
         self.model_export_dir = os.path.join(self.out_export_root, self.model_name)
-        self.remap_labels = data_config["remap_labels"]
+        self.remap_labels = data_config["remap_labels"] if data_config["remap_labels"] is not None else True
+        
+        
         self.outline = data_config["outline"]
-        self.skip_types = (
-            [self.nuclei_type_dict[x.strip()] for x in data_config["skip_types"]]
-            if data_config["skip_types"] is not None
-            else None
-        )
+        self.skip_types = data_config["skip_types"]
+        # self.skip_types = (
+        #     [self.nuclei_type_dict[x.strip()] for x in data_config["skip_types"]]
+        #     if data_config["skip_types"] is not None
+        #     else None
+        # )
+        self.process_maping = data_config["process_maping"]
 
-        self.inf_auto_comparator = data_config["inf_auto_comparator"]
-        self.inf_batch_size = data_config["inf_batch_size"]
+        self.inf_auto_comparator = data_config["inf_auto_comparator"] if data_config["inf_auto_comparator"] is not None else '>'
+        self.inf_batch_size = data_config["inf_batch_size"] if data_config["inf_batch_size"] is not None else 16
 
         # For inference during evalutaion mode i.e run by inferer.py
         self.eval_inf_input_tensor_names = ["images"]
@@ -457,3 +456,7 @@ class Config(object):
             output_names=self.eval_inf_output_tensor_names,
         )
         return pred_config
+
+
+if __name__ == "__main__":
+    config = Config()

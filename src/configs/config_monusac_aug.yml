@@ -1,5 +1,3 @@
-### Config example, see ./configs folder for templates and variables annotations
-
 name: monusac_aug
 profile: hv_monusac
 id: 1.0

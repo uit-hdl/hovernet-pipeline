@@ -274,7 +274,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--map",
         help="Name of the nuclei type mapping",
-        choices=["consep", "pannuke"],
+        choices=["consep", "pannuke", "monusac"],
         required=True,
     )
     parser.add_argument(
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     if args.type:
         print("---Type statistics---")
         run_nuclei_type_stat(
-            args.pred_dir, args.true_dir, MAP_TYPES[f"nuclei_types_hv_{args.map}"]
+            args.pred_dir, args.true_dir, MAP_TYPES[f"hv_{args.map}"]
         )
     if args.inst:
         print("---Instance statistics---")

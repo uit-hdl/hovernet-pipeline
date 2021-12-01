@@ -1,11 +1,9 @@
-### Config example, see ./configs folder for templates and variables annotations
-
-name: monusac_aug
-profile: hv_monusac
+name: pannuke_aug
+profile: hv_pannuke
 id: 1.0
 
 # 1st - extract patches
-data_dir: data_hv_monusac
+data_dir: data_hv_pannuke
 extract_type: mirror
 data_modes:
   - train
@@ -24,4 +22,4 @@ inf_auto_find_chkpt: true
 inf_auto_metric: valid_dice
 inf_batch_size: 16
 inf_data_list:
-  - data_hv_monusac/test/Images/
+  - data_hv_pannuke/test/Images/

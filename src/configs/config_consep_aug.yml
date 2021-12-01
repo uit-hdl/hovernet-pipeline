@@ -1,16 +1,13 @@
-### Config example, see ./configs folder for templates and variables annotations
-
-name: monusac_aug
-profile: hv_monusac
+name: consep_aug
+profile: hv_consep
 id: 1.0
 
 # 1st - extract patches
-data_dir: data_hv_monusac
+data_dir: data_hv_consep
 extract_type: mirror
 data_modes:
   - train
   - test
-  - valid
 
 # 2nd - training
 input_augs: p_linear_2
@@ -24,4 +21,4 @@ inf_auto_find_chkpt: true
 inf_auto_metric: valid_dice
 inf_batch_size: 16
 inf_data_list:
-  - data_hv_monusac/test/Images/
+  - data_hv_consep/test/Images/
