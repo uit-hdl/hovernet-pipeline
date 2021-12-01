@@ -29,6 +29,16 @@ AV_CPU = os.cpu_count()
 
 ###################
 
+def swap_classes(pred, mapping):
+    '''
+    # Example: change 1 to 4 and 2 to 3.
+    mapping = {1:4, 2:3}
+    '''
+    id_map = pred.copy()
+    for k,v in mapping.items():
+        pred[id_map == k] = v
+    return pred
+
 
 def process(jobs):
 
@@ -68,15 +78,11 @@ def process(jobs):
             pred = sio.loadmat(os.path.join(pred_dir, "{}.mat".format(basename)))
             pred = np.squeeze(pred["result"])
 
-            if hasattr(cfg, "type_classification") and cfg.type_classification:
-                pred_inst = pred[..., cfg.nr_types :]
-                pred_type = pred[..., : cfg.nr_types]
+            pred_inst = pred[..., cfg.nr_types :]
+            pred_type = pred[..., : cfg.nr_types]
 
-                pred_inst = np.squeeze(pred_inst)
-                pred_type = np.argmax(pred_type, axis=-1)
-
-            else:
-                pred_inst = pred
+            pred_inst = np.squeeze(pred_inst)
+            pred_type = np.argmax(pred_type, axis=-1)
 
             if cfg.model_type == "np_hv" or cfg.model_type == "np_hv_opt":
                 pred_inst = postproc.hover.proc_np_hv(
@@ -90,74 +96,89 @@ def process(jobs):
             if cfg.remap_labels:
                 pred_inst = remap_label(pred_inst, by_size=True)
 
-            # for instance segmentation only
-            if cfg.type_classification:
-                #### * Get class of each instance id, stored at index id-1
-                pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
-                pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
-                for idx, inst_id in enumerate(pred_id_list):
-                    inst_type = pred_type[pred_inst == inst_id]
-                    type_list, type_pixels = np.unique(inst_type, return_counts=True)
-                    type_list = list(zip(type_list, type_pixels))
-                    type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
-                    inst_type = type_list[0][0]
-                    if inst_type == 0:  # ! pick the 2nd most dominant if exist
-                        if len(type_list) > 1:
-                            inst_type = type_list[1][0]
-                        else:
-                            if jobs == 1:
-                                pass  # print('[Warn] Instance has `background` type')
-                    pred_inst_type[idx] = inst_type
-                pred_inst_centroid = get_inst_centroid(pred_inst)
+            #### * Get class of each instance id, stored at index id-1
+            pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
+            pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
+            for idx, inst_id in enumerate(pred_id_list):
+                inst_type = pred_type[pred_inst == inst_id]
+                type_list, type_pixels = np.unique(inst_type, return_counts=True)
+                type_list = list(zip(type_list, type_pixels))
+                type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+                inst_type = type_list[0][0]
+                if inst_type == 0:  # ! pick the 2nd most dominant if exist
+                    if len(type_list) > 1:
+                        inst_type = type_list[1][0]
+                    else:
+                        if jobs == 1:
+                            pass  # print('[Warn] Instance has `background` type')
+                pred_inst_type[idx] = inst_type
+            pred_inst_centroid = get_inst_centroid(pred_inst)
 
-                ###### ad hoc just once for pannuke predictions
-                # for key in ['type_map', 'inst_type']:
-                # pred_type[(pred_type == 5)] = 4
-                # pred_inst_type[(pred_inst_type == 5)] = 4
 
-                sio.savemat(
-                    os.path.join(proc_dir, "{}.mat".format(basename)),
-                    {
-                        "inst_map": pred_inst,
-                        "type_map": pred_type,
-                        "inst_type": pred_inst_type[:, None],
-                        "inst_centroid": pred_inst_centroid,
-                    },
-                )
-                overlaid_output = visualize_instances(
-                    pred_inst,
-                    img,
-                    ((cfg.nuclei_type_dict, cfg.color_palete), pred_inst_type[:, None]),
-                    cfg.outline,
-                    cfg.skip_types,
-                )
-                overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-                cv2.imwrite(
-                    os.path.join(proc_dir, "{}.png".format(basename)), overlaid_output
-                )
-                with open(os.path.join(proc_dir, f"{basename}.log"), "w") as log_file:
-                    unique, counts = np.unique(
-                        pred_inst_type[:, None], return_counts=True
-                    )
-                    unique = list(unique)
-                    if 0 in unique:  # remove backround entries
-                        counts = np.delete(counts, unique.index(0))
-                        unique.remove(0)
-                    print(
-                        f"{basename} : {dict(zip([{str(v): str(k) for k, v in cfg.nuclei_type_dict.items()}[str(item)] for item in unique], counts))}",
-                        file=log_file,
-                    )
+            if cfg.process_mapping is not None:
+                pred_type = swap_classes(pred_type, cfg.process_mapping)
+                pred_inst_type = swap_classes(pred_inst_type, cfg.process_mapping)
 
-            else:
-                sio.savemat(
-                    os.path.join(proc_dir, "{}.mat".format(basename)),
-                    {"inst_map": pred_inst},
+            ###### ad hoc for pannuke predictions
+            # 5 -> 4
+
+            ###### ad hoc for squash_monusac predictions
+            # 3 -> 2
+            # 4 -> 2
+
+            ###### ad hoc for consep model to monusac data
+            # 3 -> 2
+            # 4 -> 2
+            # 1 -> 3
+
+            ###### ad hoc for monusac to consep predictions
+            # 3 -> 2
+            # 4 -> 2
+            # 1 -> 3
+
+            ###### ad hoc for monusac to pannuke predictions
+            # 1 -> 4
+            # 2 -> 1
+            # 3 -> 1
+            # 4 -> 1
+            # 5 -> 4
+
+
+            # print (np.unique(pred_type))
+            # if 0 not in np.unique(pred_type):
+            #     return
+
+            sio.savemat(
+                os.path.join(proc_dir, "{}.mat".format(basename)),
+                {
+                    "inst_map": pred_inst,
+                    "type_map": pred_type,
+                    "inst_type": pred_inst_type[:, None],
+                    "inst_centroid": pred_inst_centroid,
+                },
+            )
+            overlaid_output = visualize_instances(
+                pred_inst,
+                img,
+                ((cfg.nuclei_type_dict, cfg.color_palete), pred_inst_type[:, None]),
+                cfg.outline,
+                cfg.skip_types,
+            )
+            overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+            cv2.imwrite(
+                os.path.join(proc_dir, "{}.png".format(basename)), overlaid_output
+            )
+            with open(os.path.join(proc_dir, f"{basename}.log"), "w") as log_file:
+                unique, counts = np.unique(
+                    pred_inst_type[:, None], return_counts=True
                 )
-                overlaid_output = visualize_instances(pred_inst, img)
-                overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-                cv2.imwrite(
-                    os.path.join(proc_dir, "{}_uc.png".format(basename)),
-                    overlaid_output,
+                unique = list(unique)
+                if 0 in unique:  # remove backround entries
+                    counts = np.delete(counts, unique.index(0))
+                    unique.remove(0)
+                print(
+                    f"{basename} : {dict(zip([{str(v): str(k) for k, v in cfg.nuclei_type_dict.items()}[str(item)] for item in unique], counts))}",
+                    file=log_file,
                 )
 
             ##

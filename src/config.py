@@ -103,9 +103,7 @@ class Config(object):
         self.seed = data_config["seed"]
         mode = data_config["mode"]
         self.model_type = data_config["model_type"]
-        self.type_classification = data_config["type_classification"]
 
-        # Some semantic segmentation network like micronet, nr_types will replace nr_classes if type_classification=True
         self.nr_classes = 2  # Nuclei Pixels vs Background
 
         self.nuclei_type_dict = data_config["nuclei_types"]
@@ -118,13 +116,6 @@ class Config(object):
 
         for variable, value in config_dict.items():
             self.__setattr__(variable, value)
-
-        # patches are stored as numpy arrays with N channels
-        # ordering as [Image][Nuclei Pixels][Nuclei Type][Additional Map] - training data
-        # Ex: with type_classification=True
-        #     HoVer-Net: RGB - Nuclei Pixels - Type Map - Horizontal and Vertical Map
-        # Ex: with type_classification=False
-        #     Dist     : RGB - Nuclei Pixels - Distance Map
 
         self.color_palete = COLOR_PALETE
 
@@ -399,9 +390,6 @@ class Config(object):
             label_augs = [GenInstanceHV(crop_shape=output_shape)]
         if self.model_type == "np_dist":
             label_augs = [GenInstanceDistance(crop_shape=output_shape, inst_norm=True)]
-
-        if not self.type_classification:
-            label_augs.append(BinarizeLabel())
 
         if not view:
             label_augs.append(imgaug.CenterCrop(output_shape))

@@ -32,7 +32,6 @@ hv_monusac:
   - 164
   train_dir:
   - train/Annotations
-  type_classification: true
   valid_dir:
   - test/Annotations
   win_size:

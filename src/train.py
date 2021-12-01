@@ -65,17 +65,12 @@ class StatCollector(Inferencer, Config):
         # have to get total number pixels for mean per pixel
         nr_pixels = np.size(true[..., :1])
 
-        if self.type_classification:
-            pred_type = pred[..., : self.nr_types]
-            pred_inst = pred[..., self.nr_types :]
+        pred_type = pred[..., : self.nr_types]
+        pred_inst = pred[..., self.nr_types :]
 
-            true_inst = true
-            true_type = true[..., 1]
-            true_np = (true_type > 0).astype("int32")
-        else:
-            pred_inst = pred
-            true_inst = true
-            true_np = true[..., 0]
+        true_inst = true
+        true_type = true[..., 1]
+        true_np = (true_type > 0).astype("int32")
 
         # * index selection followed what is defined in the graph
         # * and all model's graphs must follow same index ordering protocol
@@ -106,15 +101,14 @@ class StatCollector(Inferencer, Config):
         stat_dict[self.prefix + "_acc"] = accuracy
         stat_dict[self.prefix + "_dice"] = dice
 
-        if self.type_classification:
-            pred_type = np.argmax(pred_type, axis=-1)
+        pred_type = np.argmax(pred_type, axis=-1)
 
-            type_dict = self.nuclei_type_dict
-            type_dice_list = []
-            for type_name, type_id in type_dict.items():
-                dice_val = _dice(true_type, pred_type, type_id)
-                type_dice_list.append(dice_val)
-                stat_dict[f"{self.prefix}_dice_{type_name}"] = dice_val
+        type_dict = self.nuclei_type_dict
+        type_dice_list = []
+        for type_name, type_id in type_dict.items():
+            dice_val = _dice(true_type, pred_type, type_id)
+            type_dice_list.append(dice_val)
+            stat_dict[f"{self.prefix}_dice_{type_name}"] = dice_val
 
         return stat_dict
 

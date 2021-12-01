@@ -164,22 +164,15 @@ class Model_NP_HV(Model):
         images, truemap_coded = inputs
         orig_imgs = images
 
-        if hasattr(self, "type_classification") and self.type_classification:
-            true_type = truemap_coded[..., 1]
-            true_type = tf.cast(true_type, tf.int32)
-            true_type = tf.identity(true_type, name="truemap-type")
-            one_type = tf.one_hot(true_type, self.nr_types, axis=-1)
-            true_type = tf.expand_dims(true_type, axis=-1)
+        true_type = truemap_coded[..., 1]
+        true_type = tf.cast(true_type, tf.int32)
+        true_type = tf.identity(true_type, name="truemap-type")
+        one_type = tf.one_hot(true_type, self.nr_types, axis=-1)
+        true_type = tf.expand_dims(true_type, axis=-1)
 
-            true_np = tf.cast(true_type > 0, tf.int32)  # ? sanity this
-            true_np = tf.identity(true_np, name="truemap-np")
-            one_np = tf.one_hot(tf.squeeze(true_np), 2, axis=-1)
-        else:
-            true_np = truemap_coded[..., 0]
-            true_np = tf.cast(true_np, tf.int32)
-            true_np = tf.identity(true_np, name="truemap-np")
-            one_np = tf.one_hot(true_np, 2, axis=-1)
-            true_np = tf.expand_dims(true_np, axis=-1)
+        true_np = tf.cast(true_type > 0, tf.int32)  # ? sanity this
+        true_np = tf.identity(true_np, name="truemap-np")
+        one_np = tf.one_hot(tf.squeeze(true_np), 2, axis=-1)
 
         true_hv = truemap_coded[..., -2:]
         true_hv = tf.identity(true_hv, name="truemap-hv")
@@ -207,21 +200,20 @@ class Model_NP_HV(Model):
             hv_feat = decoder("hv", d)
             hv = BNReLU("preact_out_hv", hv_feat[-1])
 
-            if self.type_classification:
-                tp_feat = decoder("tp", d)
-                tp = BNReLU("preact_out_tp", tp_feat[-1])
+            tp_feat = decoder("tp", d)
+            tp = BNReLU("preact_out_tp", tp_feat[-1])
 
-                # Nuclei Type Pixels (TP)
-                logi_class = Conv2D(
-                    "conv_out_tp",
-                    tp,
-                    self.nr_types,
-                    1,
-                    use_bias=True,
-                    activation=tf.identity,
-                )
-                logi_class = tf.transpose(logi_class, [0, 2, 3, 1])
-                soft_class = tf.nn.softmax(logi_class, axis=-1)
+            # Nuclei Type Pixels (TP)
+            logi_class = Conv2D(
+                "conv_out_tp",
+                tp,
+                self.nr_types,
+                1,
+                use_bias=True,
+                activation=tf.identity,
+            )
+            logi_class = tf.transpose(logi_class, [0, 2, 3, 1])
+            soft_class = tf.nn.softmax(logi_class, axis=-1)
 
             #### Nuclei Pixels (NP)
             logi_np = Conv2D(
@@ -242,14 +234,9 @@ class Model_NP_HV(Model):
 
             # * channel ordering: type-map, segmentation map
             # encoded so that inference can extract all output at once
-            if self.type_classification:
-                predmap_coded = tf.concat(
-                    [soft_class, prob_np, pred_hv], axis=-1, name="predmap-coded"
-                )
-            else:
-                predmap_coded = tf.concat(
-                    [prob_np, pred_hv], axis=-1, name="predmap-coded"
-                )
+            predmap_coded = tf.concat(
+                [soft_class, prob_np, pred_hv], axis=-1, name="predmap-coded"
+            )
         ####
         def get_gradient_hv(l, h_ch, v_ch):
             """
@@ -330,27 +317,26 @@ class Model_NP_HV(Model):
                 add_moving_summary(term_loss)
                 loss += term_loss * weight
 
-            if self.type_classification:
-                term_loss = categorical_crossentropy(soft_class, one_type)
-                term_loss = tf.reduce_mean(term_loss, name="loss-xentropy-class")
-                add_moving_summary(term_loss)
-                loss = loss + term_loss
+            term_loss = categorical_crossentropy(soft_class, one_type)
+            term_loss = tf.reduce_mean(term_loss, name="loss-xentropy-class")
+            add_moving_summary(term_loss)
+            loss = loss + term_loss
 
-                # term_loss = dice_loss(soft_class[...,0], one_type[...,0]) \
-                #           + dice_loss(soft_class[...,1], one_type[...,1]) \
-                #           + dice_loss(soft_class[...,2], one_type[...,2]) \
-                #           + dice_loss(soft_class[...,3], one_type[...,3]) \
-                #           + dice_loss(soft_class[...,4], one_type[...,4])
+            # term_loss = dice_loss(soft_class[...,0], one_type[...,0]) \
+            #           + dice_loss(soft_class[...,1], one_type[...,1]) \
+            #           + dice_loss(soft_class[...,2], one_type[...,2]) \
+            #           + dice_loss(soft_class[...,3], one_type[...,3]) \
+            #           + dice_loss(soft_class[...,4], one_type[...,4])
 
-                term_loss = 0
-                for type_id in range(self.nr_types):
-                    term_loss += dice_loss(
-                        soft_class[..., type_id], one_type[..., type_id]
-                    )
+            term_loss = 0
+            for type_id in range(self.nr_types):
+                term_loss += dice_loss(
+                    soft_class[..., type_id], one_type[..., type_id]
+                )
 
-                term_loss = tf.identity(term_loss, name="loss-dice-class")
-                add_moving_summary(term_loss)
-                loss = loss + term_loss
+            term_loss = tf.identity(term_loss, name="loss-dice-class")
+            add_moving_summary(term_loss)
+            loss = loss + term_loss
 
             ### combine the loss into single cost function
             self.cost = tf.identity(loss, name="overall-loss")
@@ -373,31 +359,27 @@ class Model_NP_HV(Model):
             true_h = colorize(true_hv[..., 0], vmin=-1, vmax=1, cmap="jet")
             true_v = colorize(true_hv[..., 1], vmin=-1, vmax=1, cmap="jet")
 
-            if not self.type_classification:
-                viz = tf.concat(
-                    [orig_imgs, pred_h, pred_v, pred_np, true_h, true_v, true_np], 2
-                )
-            else:
-                pred_type = tf.transpose(soft_class, (0, 1, 3, 2))
-                pred_type = tf.reshape(pred_type, [-1, 80, 80 * self.nr_types])
-                true_type = tf.cast(true_type[..., 0] / self.nr_classes, tf.float32)
-                true_type = colorize(true_type, vmin=0, vmax=1, cmap="jet")
-                pred_type = colorize(pred_type, vmin=0, vmax=1, cmap="jet")
 
-                viz = tf.concat(
-                    [
-                        orig_imgs,
-                        pred_h,
-                        pred_v,
-                        pred_np,
-                        pred_type,
-                        true_h,
-                        true_v,
-                        true_np,
-                        true_type,
-                    ],
-                    2,
-                )
+            pred_type = tf.transpose(soft_class, (0, 1, 3, 2))
+            pred_type = tf.reshape(pred_type, [-1, 80, 80 * self.nr_types])
+            true_type = tf.cast(true_type[..., 0] / self.nr_classes, tf.float32)
+            true_type = colorize(true_type, vmin=0, vmax=1, cmap="jet")
+            pred_type = colorize(pred_type, vmin=0, vmax=1, cmap="jet")
+
+            viz = tf.concat(
+                [
+                    orig_imgs,
+                    pred_h,
+                    pred_v,
+                    pred_np,
+                    pred_type,
+                    true_h,
+                    true_v,
+                    true_np,
+                    true_type,
+                ],
+                2,
+            )
 
             viz = tf.concat([viz[0], viz[-1]], axis=0)
             viz = tf.expand_dims(viz, axis=0)
