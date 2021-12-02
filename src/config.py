@@ -25,7 +25,7 @@ from loader.augs import (
     linearAugmentation,
 )
 
-from misc.info import COLOR_PALETE, MAP_TYPES, MODEL_TYPES, STEP_SIZE, WIN_SIZE
+from misc.info import COLOR_PALETE, MAP_TYPES, MODEL_TYPES, MODEL_PARAMS
 from misc.utils import get_best_chkpts
 
 ####
@@ -44,6 +44,20 @@ class Config(object):
 
         input_prefix = '/data/input/' if data_config["input_prefix"] is None else data_config["input_prefix"]
         output_prefix = '/data/output/' if data_config["output_prefix"] is None else data_config["output_prefix"]
+
+        # init model params
+        self.seed = data_config["seed"] if data_config["seed"] is not None else 10
+        self.model_type = data_config["model_type"] if data_config["model_type"] is not None else MODEL_TYPES[self.model_config]
+        self.nr_classes = 2  # Nuclei Pixels vs Background
+        self.nuclei_type_dict = data_config["nuclei_types"] if data_config["nuclei_types"] is not None else MAP_TYPES[self.model_config]
+        self.nr_types = len(self.nuclei_type_dict.values()) + 1  # plus background
+
+        # config_file = importlib.import_module("opt.hover") ### ./opt/hover
+        # config_dict = config_file.__getattribute__(self.model_type)
+        
+        model_params = MODEL_PARAMS[self.model_type]
+        for variable, value in model_params.items():
+            self.__setattr__(variable, value)
     
         # Load config yml file
         self.log_path = output_prefix  # log root path
@@ -53,9 +67,6 @@ class Config(object):
 
         self.extract_type = data_config["extract_type"] if data_config["extract_type"] is not None else 'mirror'
         self.data_modes = data_config["data_modes"]
-
-        self.win_size = data_config["win_size"] if data_config["win_size"] is not None else WIN_SIZE[self.model_config]
-        self.step_size = data_config["step_size"] if data_config["step_size"] is not None else STEP_SIZE[self.model_config]
         
         self.img_ext = (
             ".png" if data_config["img_ext"] is None else data_config["img_ext"]
@@ -98,19 +109,6 @@ class Config(object):
                 ],
             )
         }
-
-        # init model params
-        self.seed = data_config["seed"] if data_config["seed"] is not None else 10
-        self.model_type = data_config["model_type"] if data_config["model_type"] is not None else MODEL_TYPES[self.model_config]
-        self.nr_classes = 2  # Nuclei Pixels vs Background
-        self.nuclei_type_dict = data_config["nuclei_types"] if data_config["nuclei_types"] is not None else MAP_TYPES[self.model_config]
-        self.nr_types = len(self.nuclei_type_dict.values()) + 1  # plus background
-
-        config_file = importlib.import_module("opt.hover")
-        config_dict = config_file.__getattribute__(self.model_type)
-
-        for variable, value in config_dict.items():
-            self.__setattr__(variable, value)
 
         self.color_palete = COLOR_PALETE
 
@@ -460,3 +458,6 @@ class Config(object):
 
 if __name__ == "__main__":
     config = Config()
+    print (config.infer_mask_shape)
+    print (config.win_size)
+    print (config.optimizer)

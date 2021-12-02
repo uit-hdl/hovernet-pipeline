@@ -1,3 +1,5 @@
+from tensorflow.train import AdamOptimizer as AdamOpt
+
 MAP_TYPES = {
     "hv_consep": {
         "Inflammatory": 2,  # 1
@@ -44,17 +46,110 @@ COLOR_PALETE = {
 #     'np_hv'    : '540x540_80x80'
 # }
 
-MODEL_TYPES = {"hv_consep": "np_hv", "hv_pannuke": "np_hv_opt", "hv_monusac": "np_hv_opt"}
+MODEL_TYPES = {
+    "hv_consep": "np_hv", 
+    "hv_pannuke": "np_hv_opt", 
+    "hv_monusac": "np_hv_opt"
+}
 
-STEP_SIZE = {"hv_consep": (80,80), "hv_pannuke": (164,164), "hv_monusac": (164,164)}
+MODEL_PARAMS = {
+    "np_hv": 
+    {
+        "step_size": (80,80),
+        "win_size": (540,540),
 
-WIN_SIZE = {"hv_consep": (540,540), "hv_pannuke": (512,512), "hv_monusac": (512,512)}
+        "train_input_shape": (270, 270),
+        "train_mask_shape": (80, 80),
+        "infer_input_shape": (270, 270),
+        "infer_mask_shape": (80, 80),
+        "training_phase": [
+            {
+                "nr_epochs": 50,
+                "manual_parameters": {
+                    # tuple(initial value, schedule)
+                    "learning_rate": (1.0e-4, [("25", 1.0e-5)]),
+                },
+                "pretrained_path": "/data/input/pretrained/ImageNet-ResNet50-Preact.npz",
+                "train_batch_size": 8,
+                "infer_batch_size": 16,
+                "model_flags": {"freeze": True},
+            },
+            {
+                "nr_epochs": 50,
+                "manual_parameters": {
+                    # tuple(initial value, schedule)
+                    "learning_rate": (1.0e-4, [("25", 1.0e-5)]),
+                },
+                # path to load, -1 to auto load checkpoint from previous phase,
+                # None to start from scratch
+                "pretrained_path": -1,
+                "train_batch_size": 4,  # unfreezing everything will
+                "infer_batch_size": 16,
+                "model_flags": {"freeze": False},
+            },
+        ],
+        "loss_term": {"bce": 1, "dice": 1, "mse": 2, "msge": 1},
+        "optimizer": AdamOpt,
+    },
 
+    "np_hv_opt": 
+    {
+        "step_size": (164,164),
+        "win_size": (512,512),
+
+        "train_input_shape": (256, 256),
+        "train_mask_shape": (164, 164),
+        "infer_input_shape": (256, 256),
+        "infer_mask_shape": (164, 164),
+        "training_phase": [
+            {
+                "nr_epochs": 50,
+                "manual_parameters": {
+                    # tuple(initial value, schedule)
+                    "learning_rate": (1.0e-4, [("25", 1.0e-5)]),
+                },
+                "pretrained_path": "/data/input/pretrained/ImageNet-ResNet50-Preact.npz",
+                "train_batch_size": 8,
+                "infer_batch_size": 16,
+                "model_flags": {"freeze": True},
+            },
+            {
+                "nr_epochs": 50,
+                "manual_parameters": {
+                    # tuple(initial value, schedule)
+                    "learning_rate": (1.0e-4, [("25", 1.0e-5)]),
+                },
+                # path to load, -1 to auto load checkpoint from previous phase,
+                # None to start from scratch
+                "pretrained_path": -1,
+                "train_batch_size": 4,  # unfreezing everything will
+                "infer_batch_size": 16,
+                "model_flags": {"freeze": False},
+            },
+        ],
+        "loss_term": {"bce": 1, "dice": 1, "mse": 2, "msge": 1},
+        "optimizer": AdamOpt,
+    }
+}
+
+#### Training parameters
+###
+# np+hv : double branches nework,
+#     1 branch nuclei pixel classification (segmentation)
+#     1 branch regressing horizontal/vertical coordinate w.r.t the (supposed)
+#     nearest nuclei centroids, coordinate is normalized to 0-1 range
+#
+# np+dst: double branches nework
+#     1 branch nuclei pixel classification (segmentation)
+#     1 branch regressing nuclei instance distance map (chessboard in this case),
+#     the distance map is normalized to 0-1 range
+
+# STEP_SIZE = {"hv_consep": (80,80), "hv_pannuke": (164,164), "hv_monusac": (164,164)}
+# WIN_SIZE = {"hv_consep": (540,540), "hv_pannuke": (512,512), "hv_monusac": (512,512)}
 # INPUT_SHAPE = { # WIN/2
 #     'hv_consep': 270,
 #     'hv_pannuke': 256,
 #     'hv_monusac': 256,
-
 # }
 # MASK_SHAPE =  { # = STEP_SIZE
 #     'hv_consep': 80,
