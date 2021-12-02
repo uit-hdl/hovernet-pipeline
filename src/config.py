@@ -353,14 +353,11 @@ class Config(object):
 
     def get_model(self):
         if self.model_type == "np_hv":
-            model_constructor = importlib.import_module("model.graph")
+            model_constructor = importlib.import_module("model.hover")
             model_constructor = model_constructor.Model_NP_HV
         elif self.model_type == "np_hv_opt":
             model_constructor = importlib.import_module("model.hover_opt")
             model_constructor = model_constructor.Model_NP_HV_OPT
-        elif self.model_type == "np_dist":
-            model_constructor = importlib.import_module("model.graph")
-            model_constructor = model_constructor.Model_NP_DIST
         return model_constructor  # NOTE return alias, not object
 
     # refer to https://tensorpack.readthedocs.io/modules/dataflow.imgaug.html for
