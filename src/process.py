@@ -88,8 +88,6 @@ def process(jobs):
                 pred_inst = postproc.hover.proc_np_hv(
                     pred_inst, marker_mode=marker_mode, energy_mode=energy_mode, rgb=img
                 )
-            elif cfg.model_type == "np_dist":
-                pred_inst = postproc.hover.proc_np_dist(pred_inst)
 
             # ! will be extremely slow on WSI/TMA so it's advisable to comment this out
             # * remap once so that further processing faster (metrics calculation, etc.)
