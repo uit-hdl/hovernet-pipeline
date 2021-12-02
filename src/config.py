@@ -455,6 +455,3 @@ class Config(object):
 
 if __name__ == "__main__":
     config = Config()
-    print (config.infer_mask_shape)
-    print (config.win_size)
-    print (config.optimizer)

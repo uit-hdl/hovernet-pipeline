@@ -12,7 +12,6 @@ from misc.info import MAP_TYPES
 
 from metrics.stats_utils import *
 
-
 def run_nuclei_type_stat(
     pred_dir, true_dir, nuclei_type_dict, type_uid_list=None, exhaustive=True, rad=12
 ):
@@ -67,7 +66,7 @@ def run_nuclei_type_stat(
         paired, unpaired_true, unpaired_pred = pair_coordinates(
             true_centroid, pred_centroid, rad
         )
-
+        
         # * Aggreate information
         # get the offset as each index represent 1 independent instance
         true_idx_offset = (
@@ -90,16 +89,19 @@ def run_nuclei_type_stat(
         unpaired_true_all.append(unpaired_true)
         unpaired_pred_all.append(unpaired_pred)
 
-    paired_all = np.concatenate(paired_all, axis=0)
-    unpaired_true_all = np.concatenate(unpaired_true_all, axis=0)
-    unpaired_pred_all = np.concatenate(unpaired_pred_all, axis=0)
-    true_inst_type_all = np.concatenate(true_inst_type_all, axis=0)
-    pred_inst_type_all = np.concatenate(pred_inst_type_all, axis=0)
+    paired_all = np.concatenate(paired_all, axis=0) # (x, 2) # paired ids (found in GT and pred)
+    unpaired_true_all = np.concatenate(unpaired_true_all, axis=0) # (x,) # unpaired ids (found in GT and NOT in pred)
+    unpaired_pred_all = np.concatenate(unpaired_pred_all, axis=0) # (x,) # unpaired ids (NOT found in GT and found in pred)
 
-    paired_true_type = true_inst_type_all[paired_all[:, 0]]
-    paired_pred_type = pred_inst_type_all[paired_all[:, 1]]
+    true_inst_type_all = np.concatenate(true_inst_type_all, axis=0) # all type ids in true [3,3,3...1,1,1]
+    paired_true_type = true_inst_type_all[paired_all[:, 0]] # paired true type ids [3,3,3...1,1,1]
     unpaired_true_type = true_inst_type_all[unpaired_true_all]
+
+    pred_inst_type_all = np.concatenate(pred_inst_type_all, axis=0) # all type ids in pred [3,3,3...1,1,1]
+    paired_pred_type = pred_inst_type_all[paired_all[:, 1]]
     unpaired_pred_type = pred_inst_type_all[unpaired_pred_all]
+
+    # true_inst_type_all = paired_true_type + unpaired_true_type
 
     ###
     def _f1_type(paired_true, paired_pred, unpaired_true, unpaired_pred, type_id, w):
@@ -108,17 +110,84 @@ def run_nuclei_type_stat(
         paired_true = paired_true[type_samples]
         paired_pred = paired_pred[type_samples]
 
+        # unpaired_pred_t = unpaired_pred[unpaired_pred == type_id] # (unpaired_pred == type_id).sum()
+        # unpaired_true_t = unpaired_true[unpaired_true == type_id]
+
+        # Original
         tp_dt = ((paired_true == type_id) & (paired_pred == type_id)).sum()
         tn_dt = ((paired_true != type_id) & (paired_pred != type_id)).sum()
         fp_dt = ((paired_true != type_id) & (paired_pred == type_id)).sum()
         fn_dt = ((paired_true == type_id) & (paired_pred != type_id)).sum()
 
+        # Classification
+        # TP - detected cell with GT label t, classified as t
+        tp_dtc = ((paired_true == type_id) & (paired_pred == type_id)).sum()
+        # TN - detected cell with GT label other than t, classified as other than t
+        tn_dtc = ((paired_true != type_id) & (paired_pred != type_id)).sum()
+        # FP - detected cell with GT label other than t classified as t
+        fp_dtc = ((paired_true != type_id) & (paired_pred == type_id)).sum()
+        # FN - detected cell with GT label t classified as other than t
+        fn_dtc = ((paired_true == type_id) & (paired_pred != type_id)).sum()
+
+        # Integrated classification
+        # TP - detected cell with GT label t, classified as t
+        tp_dtic = ((paired_true == type_id) & (paired_pred == type_id)).sum()
+        
+        # TN - detected or falsely detected cell with GT label other than t, classified as other than t
+        tn_dtic = np.concatenate((
+            ((paired_true != type_id) & (paired_pred != type_id)),
+            (unpaired_pred != type_id)
+            # np.concatenate(
+            #     ((unpaired_true != type_id), (unpaired_pred != type_id))
+            # )
+        )).sum()
+
+        # FP - detected or falsely detected cell with GT label other than t, classified as t
+        fp_dtic = np.concatenate((
+            ((paired_true != type_id) & (paired_pred == type_id)),
+            (unpaired_pred == type_id)
+            # np.concatenate(
+            #     ((unpaired_true != type_id), (unpaired_pred == type_id))
+            # )
+        )).sum()
+                    
+
+        # FN - detected cell with GT label t, classified as other than t and all cells with GT label t not detected
+        fn_dtic = np.concatenate((
+            ((paired_true == type_id) & (paired_pred != type_id)),
+            (unpaired_true == type_id)
+        )).sum()
+
         if not exhaustive:
             ignore = (paired_true == -1).sum()
             fp_dt -= ignore
 
+        tp_d = (paired_pred == type_id).sum()
+        # tn_d = (paired_true == type_id).sum()
         fp_d = (unpaired_pred == type_id).sum()
         fn_d = (unpaired_true == type_id).sum()
+        
+        print (f"---Type {type_id}----")
+        print (f"Segmentation results: Recall_d_t_{type_id}", tp_d / (tp_d + fn_d))
+
+        def __internal_metrics(tp, tn, fp, fn):
+            print (f"tp: {tp}, \ntn: {tn}, \nfp:{fp}, fn: {fn}\n")
+            acc = (tp + tn) / (tp + fp + fn + tn)
+            prec = tp / (tp + fp)
+            recall = tp / (tp + fn)
+            f1 = 2 * (prec * recall) / (prec + recall)
+            print (f"Accuracy: {acc}, \nPrecision: {prec}, \nRecall:{recall}, F1: {f1}\n")
+            return acc, prec, recall, f1
+
+        print ()
+        print (f"-----Classification for type: {type_id}-----")
+        res_class = __internal_metrics(tp_dtc, tn_dtc, fp_dtc, fn_dtc)
+        print (f"-----END Classification for type: {type_id}-----")
+        print ()
+        print (f"-----Integrated classification for type: {type_id}-----")
+        res_i_class = __internal_metrics(tp_dtic, tn_dtic, fp_dtic, fn_dtic)
+        print (f"-----END Integrated classification for type: {type_id}-----")
+        print ()
 
         # print (f"tp_dt: {tp_dt}") # TPc
         # print (f"tn_dt: {tn_dt}") # TNc
@@ -126,6 +195,10 @@ def run_nuclei_type_stat(
         # print (f"fn_dt: {fn_dt}") # FNc
         # print (f"fp_d: {fp_d}")
         # print (f"fn_d: {fn_d}")
+
+        tp_w = tp_dt + tn_dt
+        fp_w = 2 * fp_dt + fp_d
+        fn_w = 2 * fn_dt + fn_d
 
         f1_type = (2 * (tp_dt + tn_dt)) / (
             2 * (tp_dt + tn_dt)
@@ -135,26 +208,13 @@ def run_nuclei_type_stat(
             + w[3] * fn_d
         )
 
-        # Only classification
-        # precision_type =  tp_dt / (tp_dt + fp_dt)
-        # recall_type = tp_dt / (tp_dt + fn_dt)
-        # new_f1 = 2 * (precision_type * recall_type) / (precision_type + recall_type)
-
-        tp_w = tp_dt + tn_dt
-        fp_w = 2 * fp_dt + fp_d
-        fn_w = 2 * fn_dt + fn_d
-
-        # precision_type = tp_w / (tp_w + fn_w)
-        # recall_type = tp_w / (tp_w + fp_w)
-        # new_f1 = 2 * (precision_type * recall_type) / (precision_type + recall_type)
-
         precision_type = tp_w / (tp_w + fp_w)
         recall_type = tp_w / (tp_w + fn_w)
-        new_f1 = (
-            2 * (precision_type * recall_type) / (precision_type + recall_type)
-        )  # just check, same as f1_type
+        # _f1_type = (2 * (precision_type * recall_type) / (precision_type + recall_type))  # just check, same as f1_type
 
-        return f1_type, precision_type, recall_type, new_f1
+        # assert format(_f1_type, '.4f') == format(f1_type, '.4f'), (f"{format(_f1_type, '.4f'), format(f1_type, '.4f')}")
+
+        return f1_type, precision_type, recall_type
 
     # overall
     # * quite meaningless for not exhaustive annotated dataset
@@ -184,12 +244,12 @@ def run_nuclei_type_stat(
         type_uid_list = np.unique(true_inst_type_all).tolist()
         if 0 in type_uid_list:
             type_uid_list.remove(0)
-    print(f"true type_uid_list: {type_uid_list}")
-    print(f"pred type_uid_list: {np.unique(pred_inst_type_all).tolist()}")
+    print(f"True type_uid_list: {type_uid_list}")
+    print(f"Pred type_uid_list: {np.unique(pred_inst_type_all).tolist()}")
     results_list = [f1_d, acc_type, precision, recall]
 
     for type_uid in type_uid_list:
-        f1_type, precision_type, recall_type, new_f1 = _f1_type(
+        f1_type, precision_type, recall_type = _f1_type(
             paired_true_type,
             paired_pred_type,
             unpaired_true_type,
@@ -199,9 +259,11 @@ def run_nuclei_type_stat(
         )
         results_list.append(f1_type)
 
-        print(f"{type_uid}_precision: {precision_type}")
-        print(f"{type_uid}_recall: {recall_type}")
-        print(f"{type_uid}_f1: {new_f1}")
+        print(f"----Weighted results (type {type_uid})----")
+        print(f"W_Precision: {precision_type}")
+        print(f"W_Recall: {recall_type}")
+        print(f"W_F1_type{type_uid}: {f1_type}")
+        print(f"----END Weighted results (type {type_uid})----")
 
     np.set_printoptions(formatter={"float": "{: 0.5f}".format})
 
@@ -240,7 +302,6 @@ def run_nuclei_inst_stat(pred_dir, true_dir, print_img_stats=False):
         pred = remap_label(pred, by_size=False)
         true = remap_label(true, by_size=False)
 
-        # print (basename)
         pq_info = get_fast_pq(true, pred, match_iou=0.5)[0]
         metrics[0].append(get_dice_1(true, pred))
         metrics[1].append(get_fast_aji(true, pred))
@@ -256,7 +317,9 @@ def run_nuclei_inst_stat(pred_dir, true_dir, print_img_stats=False):
             print()
     ####
     metrics = np.array(metrics)
+
     metrics_avg = np.mean(metrics, axis=-1)
+    metrics_std = np.std(metrics, axis=-1)
     np.set_printoptions(formatter={"float": "{: 0.5f}".format})
     for entry in list(
         zip(["dice", "fast_aji", "dq", "pq", "sq", "aji_plus"], metrics_avg)
@@ -264,6 +327,7 @@ def run_nuclei_inst_stat(pred_dir, true_dir, print_img_stats=False):
         print(f"{entry[0]}: {entry[1]}")
     metrics_avg = list(metrics_avg)
     return metrics
+
 
 
 if __name__ == "__main__":
@@ -283,8 +347,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--inst", help="Run inst stats", default=False, action="store_true"
     )
-
     args = parser.parse_args()
+
     if args.type:
         print("---Type statistics---")
         run_nuclei_type_stat(
@@ -292,4 +356,4 @@ if __name__ == "__main__":
         )
     if args.inst:
         print("---Instance statistics---")
-        run_nuclei_inst_stat(args.pred_dir, args.true_dir, print_img_stats=False)
+        print (run_nuclei_inst_stat(args.pred_dir, args.true_dir, print_img_stats=False))
