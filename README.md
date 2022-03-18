@@ -6,7 +6,7 @@ A multiple branch network that performs nuclear instance segmentation and classi
 
 Our paper:
 
-[A Pragmatic Machine Learning Approach to Quantify Tumor Infiltrating Lymphocytes in Whole Slide Images](REF)
+[A Pragmatic Machine Learning Approach to Quantify Tumor Infiltrating Lymphocytes in Whole Slide Images](https://arxiv.org/abs/2202.06590)
 
 Original HoVer-Net papers:
 
