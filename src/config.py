@@ -211,7 +211,7 @@ class Config(object):
         #     if data_config["skip_types"] is not None
         #     else None
         # )
-        self.process_maping = data_config["process_maping"]
+        self.process_mapping = data_config["process_mapping"] if data_config["process_mapping"] is not None else None
 
         self.inf_auto_comparator = data_config["inf_auto_comparator"] if data_config["inf_auto_comparator"] is not None else '>'
         self.inf_batch_size = data_config["inf_batch_size"] if data_config["inf_batch_size"] is not None else 16
