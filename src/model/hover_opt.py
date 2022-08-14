@@ -140,9 +140,9 @@ class Model(ModelDesc, Config):
 
     def _get_inputs(self):
         return [
-            InputDesc(tf.float32, [None] + self.train_input_shape + [3], "images"),
+            InputDesc(tf.float32, [None] + list(self.train_input_shape) + [3], "images"),
             InputDesc(
-                tf.float32, [None] + self.train_mask_shape + [None], "truemap-coded"
+                tf.float32, [None] + list(self.train_mask_shape) + [None], "truemap-coded"
             ),
         ]
 
