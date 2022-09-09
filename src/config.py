@@ -222,6 +222,9 @@ class Config(object):
         # For inference during training mode i.e run by trainer.py
         self.train_inf_output_tensor_names = ["predmap-coded", "truemap-coded"]
 
+        self.model_path = data_config["model_path"]
+        self.allocated = data_config["allocated_mem_gb"]
+
         assert data_config["input_augs"] != "" or data_config["input_augs"] is not None
 
         #### Policies

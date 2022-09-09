@@ -9,16 +9,16 @@ import cv2
 import numpy as np
 from scipy import io as sio
 
-from tensorpack.predict import OfflinePredictor
+import onnxruntime as ort
 
 from config import Config
 from misc.utils import rm_n_mkdir
 
 ####
 class Inferer(Config):
-    def __gen_prediction(self, x, predictor):
+    def __gen_prediction(self, x, predictor_sess):
         """
-        Using 'predictor' to generate the prediction of image 'x'
+        Using 'predictor_sess' to generate the prediction of image 'x'
 
         Args:
             x : input image to be segmented. It will be split into patches
@@ -61,11 +61,11 @@ class Inferer(Config):
         while len(sub_patches) > self.inf_batch_size:
             mini_batch = sub_patches[: self.inf_batch_size]
             sub_patches = sub_patches[self.inf_batch_size :]
-            mini_output = predictor(mini_batch)[0]
+            mini_output = predictor_sess.run(['predmap-coded:0'], {'images:0': mini_batch})[0]
             mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
             pred_map.extend(mini_output)
         if len(sub_patches) != 0:
-            mini_output = predictor(sub_patches)[0]
+            mini_output = predictor_sess.run(['predmap-coded:0'], {'images:0': sub_patches})[0]
             mini_output = np.split(mini_output, len(sub_patches), axis=0)
             pred_map.extend(mini_output)
 
@@ -95,7 +95,16 @@ class Inferer(Config):
 
     ####
     def run(self):
-        predictor = OfflinePredictor(self.gen_pred_config())
+        
+        providers = [
+        ('CUDAExecutionProvider', {
+            'device_id': 0,
+            'gpu_mem_limit': int(self.allocated) * pow(1024, 3), # bytes
+            'cudnn_conv_algo_search': 'EXHAUSTIVE'
+        })
+        ]   
+        ort_sess = ort.InferenceSession(self.model_path, providers=providers)
+
         for num, data_dir in enumerate(self.inf_data_list):
             save_dir = os.path.join(self.inf_output_dir, str(num))
             print(save_dir)
@@ -116,7 +125,7 @@ class Inferer(Config):
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
                 ##
-                pred_map = self.__gen_prediction(img, predictor)
+                pred_map = self.__gen_prediction(img, ort_sess)
                 sio.savemat(
                     os.path.join(save_dir, "{}.mat".format(basename)),
                     {"result": [pred_map]},
