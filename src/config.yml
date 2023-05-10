@@ -23,5 +23,7 @@ valid_dir:
 inf_auto_find_chkpt: true
 inf_auto_metric: valid_dice
 inf_batch_size: 16
+
+remap_labels: false
 inf_data_list:
   - data_hv_monusac/test/Images/
